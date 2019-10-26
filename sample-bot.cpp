@@ -34,16 +34,16 @@ private:
     1 = slower
     2 = empty
   */
-  static int const test_exchange_index = 2;
+  static int const test_exchange_index = 1;
 public:
   std::string team_name;
   std::string exchange_hostname;
   int exchange_port;
   /* replace REPLACEME with your team name! */
-  Configuration(bool test_mode) : team_name("REPLACEME"){
+  Configuration(bool test_mode) : team_name("MERGEDCONFLICTS"){
     exchange_port = 20000; /* Default text based port */
     if(true == test_mode) {
-      exchange_hostname = "test-exch-" + team_name;
+      exchange_hostname = "test-exch-mergedconflicts  ";
       exchange_port += test_exchange_index;
     } else {
       exchange_hostname = "production";
@@ -88,7 +88,7 @@ public:
     if (exchange_out == NULL){
       throw std::runtime_error("could not open socket for reading");
     }
-
+ 
     setlinebuf(exchange_in);
     setlinebuf(exchange_out);
     this->in = exchange_in;
@@ -140,6 +140,20 @@ std::string join(std::string sep, std::vector<std::string> strs) {
   return stream.str();
 }
 
+std::vector<std::string> split_string(std::string line, char delim) {
+      
+    std::vector<std::string> tokens; 
+      
+    stringstream check1(line); 
+      
+    string intermediate; 
+      
+    while(getline(check1, intermediate, delim)) 
+    { 
+        tokens.push_back(intermediate); 
+    } 
+    return tokens;
+}
 
 int main(int argc, char *argv[])
 {
@@ -158,7 +172,34 @@ int main(int argc, char *argv[])
       exponential explosion in pending messages. Please, don't do that!
     */
     conn.send_to_exchange(join(" ", data));
-    std::string line = conn.read_from_exchange();
-    std::cout << "The exchange replied: " << line << std::endl;
+    while (1) {
+      std::string line = conn.read_from_exchange();
+      std::cout << "The exchange replied: " << line << std::endl;
+      std::vector<std::string> tokens = split_string(line, ' ');
+      if (tokens[0] == "BOOK" && tokens[1] == "BOND") {
+        vector<std::pair<int, int>> stock_buy;
+        vector<std::pair<int, int>> stock_sell;
+        int i = 3;
+        std::string aux = tokens[i];
+        while (aux != "SELL") {
+          std::vector<std::string> stocks_shares = split_string(aux, ':');
+          stock_buy.push_back(make_pair(stoi(stocks_shares[0]), stoi(stocks_shares[1])));
+          i++;
+          aux = tokens[i];
+        }
+        i++;
+        for (int j = i; j < tokens.size(); ++j) {
+          std::vector<std::string> stocks_shares = split_string(tokens[j], ':');
+          stock_sell.push_back(make_pair(stoi(stocks_shares[0]), stoi(stocks_shares[1])));
+        }
+        for (auto p : stock_buy) {
+          std::cout << "bot: " << p.first << ":" << p.second << std::endl; 
+        }
+        for (auto p : stock_sell) {
+          std::cout << "bot: " << p.first << ":" << p.second << std::endl; 
+        }
+      }
+    }
+    
     return 0;
 }
