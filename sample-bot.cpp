@@ -144,9 +144,9 @@ std::vector<std::string> split_string(std::string line, char delim) {
       
     std::vector<std::string> tokens; 
       
-    stringstream check1(line); 
+    std::stringstream check1(line); 
       
-    string intermediate; 
+    std::string intermediate; 
       
     while(getline(check1, intermediate, delim)) 
     { 
@@ -177,20 +177,20 @@ int main(int argc, char *argv[])
       std::cout << "The exchange replied: " << line << std::endl;
       std::vector<std::string> tokens = split_string(line, ' ');
       if (tokens[0] == "BOOK" && tokens[1] == "BOND") {
-        vector<std::pair<int, int>> stock_buy;
-        vector<std::pair<int, int>> stock_sell;
+        std::vector<std::pair<int, int>> stock_buy;
+        std::vector<std::pair<int, int>> stock_sell;
         int i = 3;
         std::string aux = tokens[i];
         while (aux != "SELL") {
           std::vector<std::string> stocks_shares = split_string(aux, ':');
-          stock_buy.push_back(make_pair(stoi(stocks_shares[0]), stoi(stocks_shares[1])));
+          stock_buy.push_back(std::make_pair(stoi(stocks_shares[0]), stoi(stocks_shares[1])));
           i++;
           aux = tokens[i];
         }
         i++;
         for (int j = i; j < tokens.size(); ++j) {
           std::vector<std::string> stocks_shares = split_string(tokens[j], ':');
-          stock_sell.push_back(make_pair(stoi(stocks_shares[0]), stoi(stocks_shares[1])));
+          stock_sell.push_back(std::make_pair(stoi(stocks_shares[0]), stoi(stocks_shares[1])));
         }
         for (auto p : stock_buy) {
           std::cout << "bot: " << p.first << ":" << p.second << std::endl; 
