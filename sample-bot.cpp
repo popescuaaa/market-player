@@ -40,10 +40,10 @@ public:
   std::string exchange_hostname;
   int exchange_port;
   /* replace REPLACEME with your team name! */
-  Configuration(bool test_mode) : team_name("MERGEDCONFLICTS"){
+  Configuration(bool test_mode) : team_name("andrei probe #1"){
     exchange_port = 20000; /* Default text based port */
     if(true == test_mode) {
-      exchange_hostname = "test-exch-mergedconflicts  ";
+      exchange_hostname = "127.0.0.1";
       exchange_port += test_exchange_index;
     } else {
       exchange_hostname = "production";
