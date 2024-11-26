@@ -1,12 +1,19 @@
 import socket
 import time
+import threading
 from market import Market
 
 HOST = '127.0.0.1'  # Localhost
 PORT = 20001        # Match the port in the C++ Configuration
 
 def run_server():
+    # Initialize the market
     market = Market()
+
+    # Start the market simulation in a separate thread
+    simulation_thread = threading.Thread(target=market.simulate_market_activity)
+    simulation_thread.start()
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
         s.listen()
@@ -32,10 +39,10 @@ def run_server():
                         if client_data:
                             print(f"Received command: {client_data}")
                             tokens = client_data.split()
-                            if tokens[0] in ["BUY", "SELL"]:
+                            if tokens[0] in ["BUY", "SELL"] and len(tokens) == 3:
                                 market.handle_client_order(tokens[0], tokens[1], tokens[2])
                             else:
-                                print(f"Unknown command: {client_data}")
+                                print(f"Unknown or invalid command: {client_data}")
                     except socket.timeout:
                         pass
 
@@ -49,6 +56,8 @@ def run_server():
             except Exception as e:
                 print(f"Error: {e}")
             finally:
+                market.stop_simulation()
+                simulation_thread.join()
                 market.save_profit_to_file()
 
 if __name__ == "__main__":

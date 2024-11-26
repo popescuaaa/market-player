@@ -1,4 +1,7 @@
 from collections import deque
+import random
+import time
+import threading
 
 class Market:
     def __init__(self):
@@ -6,6 +9,7 @@ class Market:
         self.buy_orders = deque([(100, 20), (99, 15), (98, 10)])  # [(price, quantity), ...]
         self.sell_orders = deque([(101, 10), (102, 15), (103, 20)])
         self.profit = 0  # Profit from completed trades
+        self.running = True  # Control the simulation loop
 
     def match_orders(self):
         """Match overlapping buy and sell orders."""
@@ -50,6 +54,32 @@ class Market:
 
         # Match orders after new client command
         self.match_orders()
+
+    def add_random_orders(self):
+        """Simulate random orders to mimic market activity."""
+        action = random.choice(["BUY", "SELL"])
+        quantity = random.randint(1, 20)
+        base_price = 100  # Central price for fluctuations
+        price = base_price + random.randint(-10, 10)
+
+        print(f"Market simulation added {action} order: {quantity} units @ {price}")
+        if action == "BUY":
+            self.buy_orders.appendleft((price, quantity))
+        elif action == "SELL":
+            self.sell_orders.append((price, quantity))
+
+        # Match orders after adding random order
+        self.match_orders()
+
+    def simulate_market_activity(self):
+        """Continuously simulate market activity by adding random orders."""
+        while self.running:
+            time.sleep(random.uniform(0.5, 2))  # Random delay between orders
+            self.add_random_orders()
+
+    def stop_simulation(self):
+        """Stop the simulation loop."""
+        self.running = False
 
     def get_book_message(self):
         """Format the current order book as a BOOK message."""

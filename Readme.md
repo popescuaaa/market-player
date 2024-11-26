@@ -17,3 +17,6 @@
 - [ ] client
     - [ ] setup
     - [ ] strategies
+
+- [ ] budget limitations
+- [ ] track assets ~> portofolio management
