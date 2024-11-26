@@ -172,31 +172,68 @@ int main(int argc, char *argv[])
       exponential explosion in pending messages. Please, don't do that!
     */
     conn.send_to_exchange(join(" ", data));
+
+    std::cout << "----------------------------------" << std::endl;
+
     while (1) {
       std::string line = conn.read_from_exchange();
       std::cout << "The exchange replied: " << line << std::endl;
       std::vector<std::string> tokens = split_string(line, ' ');
+
+      std::cout << "0:" << tokens[0] << std::endl;
+
       if (tokens[0] == "BOOK" && tokens[1] == "BOND") {
+        std::cout << "Transaction....";
+
         std::vector<std::pair<int, int>> stock_buy;
         std::vector<std::pair<int, int>> stock_sell;
-        int i = 3;
-        std::string aux = tokens[i];
-        while (aux != "SELL") {
-          std::vector<std::string> stocks_shares = split_string(aux, ':');
+
+        int operation_pos = 3;
+        std::string operation = tokens[operation_pos];
+
+        while (operation != "SELL") {
+          std::vector<std::string> stocks_shares = split_string(operation, ':');
+          std::cout << "part 1: " << stocks_shares[0] << std::endl;
+
           stock_buy.push_back(std::make_pair(stoi(stocks_shares[0]), stoi(stocks_shares[1])));
-          i++;
-          aux = tokens[i];
+          operation_pos++;
+          operation = tokens[operation_pos];
         }
-        i++;
-        for (int j = i; j < tokens.size(); ++j) {
+
+        operation_pos++;
+
+        for (int j = operation_pos; j < tokens.size(); ++j) {
           std::vector<std::string> stocks_shares = split_string(tokens[j], ':');
           stock_sell.push_back(std::make_pair(stoi(stocks_shares[0]), stoi(stocks_shares[1])));
         }
+
+
         for (auto p : stock_buy) {
-          std::cout << "bot: " << p.first << ":" << p.second << std::endl; 
+          std::cout << "bot [buy]: " << p.first << ":" << p.second << std::endl;
+          // send buy data for all of them
+
+          std::vector<std::string> sell_order;
+
+          sell_order.push_back(std::string("SELL"));
+          sell_order.push_back(std::to_string(p.first));
+          sell_order.push_back(std::to_string(p.second));
+
+          conn.send_to_exchange(join(" ", sell_order));
         }
+
         for (auto p : stock_sell) {
-          std::cout << "bot: " << p.first << ":" << p.second << std::endl; 
+          std::cout << "bot [sell] : " << p.first << ":" << p.second << std::endl;
+
+          // send buy data for all of them
+
+          std::vector<std::string> buy_order;
+
+          buy_order.push_back(std::string("BUY"));
+          buy_order.push_back(std::to_string(p.first));
+          buy_order.push_back(std::to_string(p.second));
+
+          conn.send_to_exchange(join(" ", buy_order));
+
         }
       }
     }

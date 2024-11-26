@@ -1,7 +1,7 @@
 # Compiler
 CXX = g++
 # Compiler flags
-CXXFLAGS = -Wall -Wextra -O2 -std=c++17
+CXXFLAGS = -O2 -std=c++17
 # Linker flags
 LDFLAGS = 
 
