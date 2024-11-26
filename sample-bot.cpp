@@ -155,61 +155,74 @@ std::vector<std::string> split_string(std::string line, char delim) {
     return tokens;
 }
 
+
+void print_order(std::vector<std::string> order) {
+  /*
+   * 0 -> operation
+   * 1 -> price
+   * 2 -> quantity 
+  */
+  std::string operation = order[0];
+  std::string price = order[1];
+  std::string quantity = order[2];
+
+  std::cout << operation << ": " << quantity << " " << price << std::endl;
+}
+
+
 int main(int argc, char *argv[])
 {
-    // Be very careful with this boolean! It switches between test and prod
+    // Setup
     bool test_mode = true;
     Configuration config(test_mode);
     Connection conn(config);
 
+    // Initial data for testing the connection
     std::vector<std::string> data;
-    data.push_back(std::string("HELLO"));
+    data.push_back(std::string("C++ Trading simulator"));
     data.push_back(config.team_name);
-    /*
-      A common mistake people make is to conn.send_to_exchange() > 1
-      time for every conn.read_from_exchange() response.
-      Since many write messages generate marketdata, this will cause an
-      exponential explosion in pending messages. Please, don't do that!
-    */
     conn.send_to_exchange(join(" ", data));
-
-    std::cout << "----------------------------------" << std::endl;
 
     while (1) {
       std::string line = conn.read_from_exchange();
       std::cout << "The exchange replied: " << line << std::endl;
+
       std::vector<std::string> tokens = split_string(line, ' ');
 
-      std::cout << "0:" << tokens[0] << std::endl;
-
       if (tokens[0] == "BOOK" && tokens[1] == "BOND") {
-        std::cout << "Transaction....";
+        std::cout << "Transaction...." << std::endl;
 
-        std::vector<std::pair<int, int>> stock_buy;
-        std::vector<std::pair<int, int>> stock_sell;
+        std::vector<std::pair<int, int>> buy;
+        std::vector<std::pair<int, int>> sell;
 
         int operation_pos = 3;
         std::string operation = tokens[operation_pos];
 
+        // BUY zone
         while (operation != "SELL") {
-          std::vector<std::string> stocks_shares = split_string(operation, ':');
-          std::cout << "part 1: " << stocks_shares[0] << std::endl;
+          std::vector<std::string> buy_offer = split_string(operation, ':');
 
-          stock_buy.push_back(std::make_pair(stoi(stocks_shares[0]), stoi(stocks_shares[1])));
+          int price = stoi(buy_offer[0]);
+          int quantity = stoi(buy_offer[1]); 
+
+          buy.push_back(std::make_pair(price, quantity));
           operation_pos++;
           operation = tokens[operation_pos];
         }
-
-        operation_pos++;
+        
+        operation_pos++; // skip "SELL"
 
         for (int j = operation_pos; j < tokens.size(); ++j) {
-          std::vector<std::string> stocks_shares = split_string(tokens[j], ':');
-          stock_sell.push_back(std::make_pair(stoi(stocks_shares[0]), stoi(stocks_shares[1])));
+          std::vector<std::string> sell_offer = split_string(tokens[j], ':');
+          int price = stoi(sell_offer[0]);
+          int quantity = stoi(sell_offer[1]); 
+
+          sell.push_back(std::make_pair(price, quantity));
         }
 
 
-        for (auto p : stock_buy) {
-          std::cout << "bot [buy]: " << p.first << ":" << p.second << std::endl;
+        for (auto p : buy) {
+          std::cout << "Someone wants to buy: " << p.first << ":" << p.second << std::endl;
           // send buy data for all of them
 
           std::vector<std::string> sell_order;
@@ -218,11 +231,13 @@ int main(int argc, char *argv[])
           sell_order.push_back(std::to_string(p.first));
           sell_order.push_back(std::to_string(p.second));
 
-          conn.send_to_exchange(join(" ", sell_order));
+          // conn.send_to_exchange(join(" ", sell_order));
+          print_order(sell_order);
+
         }
 
-        for (auto p : stock_sell) {
-          std::cout << "bot [sell] : " << p.first << ":" << p.second << std::endl;
+        for (auto p : sell) {
+          std::cout << "Someone wants to sell: " << p.first << ":" << p.second << std::endl;
 
           // send buy data for all of them
 
@@ -231,8 +246,10 @@ int main(int argc, char *argv[])
           buy_order.push_back(std::string("BUY"));
           buy_order.push_back(std::to_string(p.first));
           buy_order.push_back(std::to_string(p.second));
+          
+          print_order(buy_order);
 
-          conn.send_to_exchange(join(" ", buy_order));
+          // conn.send_to_exchange(join(" ", buy_order));
 
         }
       }
