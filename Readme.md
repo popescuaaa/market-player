@@ -11,11 +11,12 @@
 ## Current developmet status
 
 - [ ] market server
-    - [ ] market 
+    - [x] market - with multiple actors
     - [ ] socket server
 
 - [ ] client
-    - [ ] setup
+    - [x] setup
+    - [ ] clean & folderize
     - [ ] strategies
 
 - [ ] budget limitations
