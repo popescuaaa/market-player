@@ -1,7 +1,6 @@
 from collections import deque
 import random
 import time
-import threading
 
 class Market:
     def __init__(self):
