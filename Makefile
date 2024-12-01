@@ -1,38 +1,39 @@
-# Compiler
-CXX = g++
-# Compiler flags
-CXXFLAGS = -O2 -std=c++17
-# Linker flags
-LDFLAGS = 
+# Compiler and flags
+CXX := g++
+CXXFLAGS := -std=c++17 -g
 
-# Project files
-TARGET = build/main
-SRCS = $(wildcard *.cpp)
-OBJS = $(SRCS:%.cpp=build/%.o)
+# Directories
+SRC_DIR := src
+BUILD_DIR := build
 
-# Create the build directory if it doesn't exist
-BUILD_DIR = build
-$(BUILD_DIR):
-	mkdir -p $(BUILD_DIR)
+# Find all source files in the src/ directory
+SRCS := $(wildcard $(SRC_DIR)/*.cpp)
+# Convert source file paths to object file paths in build/
+OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SRCS))
 
-# Build the executable
-$(TARGET): $(BUILD_DIR) $(OBJS)
-	$(CXX) $(LDFLAGS) -o $@ $^
+# Name of the final executable
+TARGET := $(BUILD_DIR)/app
 
-# Compile source files to object files
-build/%.o: %.cpp | $(BUILD_DIR)
+# Default target
+all: $(TARGET)
+
+# Rule to build the executable
+$(TARGET): $(OBJS)
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $^
+
+# Rule to build object files
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Run the program
-run: $(TARGET)
+# Rule to run the program
+run: all
 	./$(TARGET)
 
-# Clean up build files
+# Clean up build artifacts
 clean:
 	rm -rf $(BUILD_DIR)
 
-# For debugging, build with debug flags
-debug: CXXFLAGS += -g
-debug: clean $(TARGET)
-
-.PHONY: clean debug run
+# Phony targets
+.PHONY: all run clean

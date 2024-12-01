@@ -221,22 +221,22 @@ int main(int argc, char *argv[])
         }
 
 
-        // for (auto p : buy) {
-        //   std::cout << "Someone wants to buy: " << p.first << "@" << p.second << std::endl;
-        //   // match the order
-        //   int price = p.first;
-        //   int quantity = p.second;
+        for (auto p : buy) {
+          std::cout << "Someone wants to buy: " << p.first << "@" << p.second << std::endl;
+          // match the order
+          int price = p.first;
+          int quantity = p.second;
 
-        //   std::vector<std::string> sell_order;
+          std::vector<std::string> sell_order;
 
-        //   sell_order.push_back(std::string("SELL"));
-        //   sell_order.push_back(std::to_string(quantity));
-        //   sell_order.push_back(std::to_string(price));
+          sell_order.push_back(std::string("SELL"));
+          sell_order.push_back(std::to_string(quantity));
+          sell_order.push_back(std::to_string(price));
 
-        //   conn.send_to_exchange(join(" ", sell_order));
-        //   print_order(sell_order);
+          conn.send_to_exchange(join(" ", sell_order));
+          // print_order(sell_order);
 
-        // }
+        }
 
         for (auto p : sell) {
           std::cout << "Someone wants to sell: " << p.second << "@" << p.first << std::endl;
@@ -247,13 +247,13 @@ int main(int argc, char *argv[])
           
           // reduce the price of the asset with 15% and place a buy order
           // this may increase the posibility of an acquisition
-          int reducedPrice = p.second - 10;
+          int reducedPrice = p.second;
 
           buy_order.push_back(std::string("BUY"));
           buy_order.push_back(std::to_string(quantity));
           buy_order.push_back(std::to_string(price));
           
-          print_order(buy_order);
+          // print_order(buy_order);
           conn.send_to_exchange(join(" ", buy_order));
 
         }
