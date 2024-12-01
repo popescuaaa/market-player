@@ -6,24 +6,33 @@ CXXFLAGS = -O2 -std=c++17
 LDFLAGS = 
 
 # Project files
-TARGET = main
+TARGET = build/main
 SRCS = $(wildcard *.cpp)
-OBJS = $(SRCS:.cpp=.o)
+OBJS = $(SRCS:%.cpp=build/%.o)
+
+# Create the build directory if it doesn't exist
+BUILD_DIR = build
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
 
 # Build the executable
-$(TARGET): $(OBJS)
+$(TARGET): $(BUILD_DIR) $(OBJS)
 	$(CXX) $(LDFLAGS) -o $@ $^
 
 # Compile source files to object files
-%.o: %.cpp
+build/%.o: %.cpp | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Run the program
+run: $(TARGET)
+	./$(TARGET)
 
 # Clean up build files
 clean:
-	rm -f $(OBJS) $(TARGET)
+	rm -rf $(BUILD_DIR)
 
 # For debugging, build with debug flags
 debug: CXXFLAGS += -g
 debug: clean $(TARGET)
 
-.PHONY: clean debug
+.PHONY: clean debug run
