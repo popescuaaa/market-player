@@ -88,7 +88,7 @@ public:
     if (exchange_out == NULL){
       throw std::runtime_error("could not open socket for reading");
     }
- 
+
     setlinebuf(exchange_in);
     setlinebuf(exchange_out);
     this->in = exchange_in;
@@ -141,17 +141,17 @@ std::string join(std::string sep, std::vector<std::string> strs) {
 }
 
 std::vector<std::string> split_string(std::string line, char delim) {
-      
-    std::vector<std::string> tokens; 
-      
-    std::stringstream check1(line); 
-      
-    std::string intermediate; 
-      
-    while(getline(check1, intermediate, delim)) 
-    { 
-        tokens.push_back(intermediate); 
-    } 
+
+    std::vector<std::string> tokens;
+
+    std::stringstream check1(line);
+
+    std::string intermediate;
+
+    while(getline(check1, intermediate, delim))
+    {
+        tokens.push_back(intermediate);
+    }
     return tokens;
 }
 
@@ -160,7 +160,7 @@ void print_order(std::vector<std::string> order) {
   /*
    * 0 -> operation
    * 1 -> price
-   * 2 -> quantity 
+   * 2 -> quantity
   */
   std::string operation = order[0];
   std::string price = order[1];
@@ -203,19 +203,19 @@ int main(int argc, char *argv[])
           std::vector<std::string> buy_offer = split_string(operation, ':');
 
           int price = stoi(buy_offer[0]);
-          int quantity = stoi(buy_offer[1]); 
+          int quantity = stoi(buy_offer[1]);
 
           buy.push_back(std::make_pair(price, quantity));
           operation_pos++;
           operation = tokens[operation_pos];
         }
-        
+
         operation_pos++; // skip "SELL"
 
         for (int j = operation_pos; j < tokens.size(); ++j) {
           std::vector<std::string> sell_offer = split_string(tokens[j], ':');
           int price = stoi(sell_offer[0]);
-          int quantity = stoi(sell_offer[1]); 
+          int quantity = stoi(sell_offer[1]);
 
           sell.push_back(std::make_pair(price, quantity));
         }
@@ -239,12 +239,12 @@ int main(int argc, char *argv[])
         }
 
         for (auto p : sell) {
-          std::cout << "Someone wants to sell: " << p.second << "@" << p.first << std::endl;
-          
+          std::cout << "Someone wants to sell: " << p.second << "at" << p.first << std::endl;
+
           int price = p.first;
           int quantity = p.second;
           std::vector<std::string> buy_order;
-          
+
           // reduce the price of the asset with 15% and place a buy order
           // this may increase the posibility of an acquisition
           int reducedPrice = p.second;
@@ -252,13 +252,13 @@ int main(int argc, char *argv[])
           buy_order.push_back(std::string("BUY"));
           buy_order.push_back(std::to_string(quantity));
           buy_order.push_back(std::to_string(price));
-          
+
           // print_order(buy_order);
           conn.send_to_exchange(join(" ", buy_order));
 
         }
       }
     }
-    
+
     return 0;
 }
