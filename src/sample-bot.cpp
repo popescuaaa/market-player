@@ -5,23 +5,28 @@
 */
 
 /* C includes for networking things */
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <unistd.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 /* C++ includes */
-#include <string>
-#include <iostream>
-#include <stdexcept>
 #include <algorithm>
-#include <vector>
+#include <iostream>
 #include <sstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+struct MarketEvent {
+  std::vector<std::pair<std::string, std::string>> buyOrders;
+  std::vector<std::pair<std::string, std::string>> sellOrders;
+};
 
 /* The Configuration class is used to tell the bot how to connect
    to the appropriate exchange. The `test_exchange_index` variable
@@ -30,19 +35,20 @@
 class Configuration {
 private:
   /*
-    0 = prod-like
-    1 = slower
-    2 = empty
+      0 = prod-like
+      1 = slower
+      2 = empty
   */
   static int const test_exchange_index = 1;
+
 public:
   std::string team_name;
   std::string exchange_hostname;
   int exchange_port;
   /* replace REPLACEME with your team name! */
-  Configuration(bool test_mode) : team_name("andrei probe #1"){
+  Configuration(bool test_mode) : team_name("andrei probe #1") {
     exchange_port = 20000; /* Default text based port */
-    if(true == test_mode) {
+    if (true == test_mode) {
       exchange_hostname = "127.0.0.1";
       exchange_port += test_exchange_index;
     } else {
@@ -55,18 +61,19 @@ public:
    and facilitates communication with it */
 class Connection {
 private:
-  FILE * in;
-  FILE * out;
+  FILE *in;
+  FILE *out;
   int socket_fd;
+
 public:
-  Connection(Configuration configuration){
+  Connection(Configuration configuration) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
       throw std::runtime_error("Could not create socket");
     }
     std::string hostname = configuration.exchange_hostname;
     hostent *record = gethostbyname(hostname.c_str());
-    if(!record) {
+    if (!record) {
       throw std::invalid_argument("Could not resolve host '" + hostname + "'");
     }
     in_addr *address = reinterpret_cast<in_addr *>(record->h_addr);
@@ -76,16 +83,16 @@ public:
     server.sin_family = AF_INET;
     server.sin_port = htons(configuration.exchange_port);
 
-    int res = connect(sock, ((struct sockaddr *) &server), sizeof(server));
+    int res = connect(sock, ((struct sockaddr *)&server), sizeof(server));
     if (res < 0) {
       throw std::runtime_error("could not connect");
     }
     FILE *exchange_in = fdopen(sock, "r");
-    if (exchange_in == NULL){
+    if (exchange_in == NULL) {
       throw std::runtime_error("could not open socket for writing");
     }
     FILE *exchange_out = fdopen(sock, "w");
-    if (exchange_out == NULL){
+    if (exchange_out == NULL) {
       throw std::runtime_error("could not open socket for reading");
     }
 
@@ -108,13 +115,12 @@ public:
   }
 
   /** Read a line from the server, dropping the newline at the end */
-  std::string read_from_exchange()
-  {
+  std::string read_from_exchange() {
     /* We assume that no message from the exchange is longer
        than 10,000 chars */
     const size_t len = 10000;
     char buf[len];
-    if(!fgets(buf, len, this->in)){
+    if (!fgets(buf, len, this->in)) {
       throw std::runtime_error("reading line from socket");
     }
 
@@ -131,9 +137,9 @@ public:
 std::string join(std::string sep, std::vector<std::string> strs) {
   std::ostringstream stream;
   const int size = strs.size();
-  for(int i = 0; i < size; ++i) {
+  for (int i = 0; i < size; ++i) {
     stream << strs[i];
-    if(i != (strs.size() - 1)) {
+    if (i != (strs.size() - 1)) {
       stream << sep;
     }
   }
@@ -142,123 +148,97 @@ std::string join(std::string sep, std::vector<std::string> strs) {
 
 std::vector<std::string> split_string(std::string line, char delim) {
 
-    std::vector<std::string> tokens;
+  std::vector<std::string> tokens;
 
-    std::stringstream check1(line);
+  std::stringstream check1(line);
 
-    std::string intermediate;
+  std::string intermediate;
 
-    while(getline(check1, intermediate, delim))
-    {
-        tokens.push_back(intermediate);
-    }
-    return tokens;
+  while (getline(check1, intermediate, delim)) {
+    tokens.push_back(intermediate);
+  }
+  return tokens;
 }
 
+MarketEvent displayAndProcessMarketActivity(std::string marketEvent) {
 
-void print_order(std::vector<std::string> order) {
-  /*
-   * 0 -> operation
-   * 1 -> price
-   * 2 -> quantity
-  */
-  std::string operation = order[0];
-  std::string price = order[1];
-  std::string quantity = order[2];
+  std::cout << "\n------------ Market Event ------------\n";
 
-  std::cout << operation << ": " << quantity << " " << price << std::endl;
+  std::istringstream iss(marketEvent);
+  std::string token;
+
+  // Read header parts
+  iss >> token;
+  std::cout << "Message Type: " << token << "\n";
+  iss >> token;
+  std::cout << "Instrument: " << token << "\n";
+
+  // Read buy side tokens until SELL token appears
+  std::cout << "\n--- BUY Orders ---\n";
+  iss >> token; // Should be "BUY"
+  std::cout << "Side: " << token << "\n";
+
+  std::vector<std::pair<std::string, std::string>> buyOrders;
+  while (iss >> token && token != "SELL") {
+    auto pos = token.find(':');
+    if (pos != std::string::npos) {
+      std::string price = token.substr(0, pos);
+      std::string quantity = token.substr(pos + 1);
+      buyOrders.emplace_back(price, quantity);
+    }
+  }
+  for (const auto &order : buyOrders) {
+    std::cout << "Price: " << order.first << "   Quantity: " << order.second
+              << "\n";
+  }
+
+  // 'token' == "SELL", now process sell orders
+  std::cout << "\n--- SELL Orders ---\n";
+  std::vector<std::pair<std::string, std::string>> sellOrders;
+  // The "SELL" token is already read
+  std::cout << "Side: SELL\n";
+  while (iss >> token) {
+    auto pos = token.find(':');
+    if (pos != std::string::npos) {
+      std::string price = token.substr(0, pos);
+      std::string quantity = token.substr(pos + 1);
+      sellOrders.emplace_back(price, quantity);
+    }
+  }
+  for (const auto &order : sellOrders) {
+    std::cout << "Price: " << order.first << "   Quantity: " << order.second
+              << "\n";
+  }
 }
 
+int main(int argc, char *argv[]) {
+  // Setup
+  float spendableAmount = 600; // 600 EUR
+  float intraEventRiskMargin = 0.01; // 1%
 
-int main(int argc, char *argv[])
-{
-    // Setup
-    bool test_mode = true;
-    Configuration config(test_mode);
-    Connection conn(config);
+  bool test_mode = true;
+  Configuration config(test_mode);
+  Connection conn(config);
 
-    // Initial data for testing the connection
-    std::vector<std::string> data;
-    data.push_back(std::string("C++ Trading simulator"));
-    data.push_back(config.team_name);
-    conn.send_to_exchange(join(" ", data));
+  // Initial data for testing the connection
+  std::vector<std::string> data;
+  data.push_back(std::string("C++ Trading simulator"));
+  data.push_back(config.team_name);
+  conn.send_to_exchange(join(" ", data));
 
-    while (1) {
-      std::string line = conn.read_from_exchange();
-      std::cout << "The exchange replied: " << line << std::endl;
+  while (1) {
+    std::string marketEvent = conn.read_from_exchange();
+    MarketEvent marketEventProcessed =
+        displayAndProcessMarketActivity(marketEvent);
 
-      std::vector<std::string> tokens = split_string(line, ' ');
-
-      if (tokens[0] == "BOOK" && tokens[1] == "BOND") {
-        std::cout << "Transaction...." << std::endl;
-
-        std::vector<std::pair<int, int>> buy;
-        std::vector<std::pair<int, int>> sell;
-
-        int operation_pos = 3;
-        std::string operation = tokens[operation_pos];
-
-        // BUY zone
-        while (operation != "SELL") {
-          std::vector<std::string> buy_offer = split_string(operation, ':');
-
-          int price = stoi(buy_offer[0]);
-          int quantity = stoi(buy_offer[1]);
-
-          buy.push_back(std::make_pair(price, quantity));
-          operation_pos++;
-          operation = tokens[operation_pos];
-        }
-
-        operation_pos++; // skip "SELL"
-
-        for (int j = operation_pos; j < tokens.size(); ++j) {
-          std::vector<std::string> sell_offer = split_string(tokens[j], ':');
-          int price = stoi(sell_offer[0]);
-          int quantity = stoi(sell_offer[1]);
-
-          sell.push_back(std::make_pair(price, quantity));
-        }
+    // Build the portofolio first by buying some bonds
 
 
-        for (auto p : buy) {
-          std::cout << "Someone wants to buy: " << p.first << "@" << p.second << std::endl;
-          // match the order
-          int price = p.first;
-          int quantity = p.second;
+    // Start the selling part
 
-          std::vector<std::string> sell_order;
 
-          sell_order.push_back(std::string("SELL"));
-          sell_order.push_back(std::to_string(quantity));
-          sell_order.push_back(std::to_string(price));
+    // Reconstruct the portofolio
+  }
 
-          conn.send_to_exchange(join(" ", sell_order));
-          // print_order(sell_order);
-
-        }
-
-        for (auto p : sell) {
-          std::cout << "Someone wants to sell: " << p.second << "at" << p.first << std::endl;
-
-          int price = p.first;
-          int quantity = p.second;
-          std::vector<std::string> buy_order;
-
-          // reduce the price of the asset with 15% and place a buy order
-          // this may increase the posibility of an acquisition
-          int reducedPrice = p.second;
-
-          buy_order.push_back(std::string("BUY"));
-          buy_order.push_back(std::to_string(quantity));
-          buy_order.push_back(std::to_string(price));
-
-          // print_order(buy_order);
-          conn.send_to_exchange(join(" ", buy_order));
-
-        }
-      }
-    }
-
-    return 0;
+  return 0;
 }

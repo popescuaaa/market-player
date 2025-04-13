@@ -1,0 +1,10 @@
+{
+  "eventType": "orderPlacement",
+  "orderId": "ORD-987654",
+  "bondId": "BND-123456",
+  "timestamp": "2023-10-03T12:40:00Z",
+  "action": "buy",
+  "price": 99.75,
+  "quantity": 1000,
+  "status": "open"
+}
