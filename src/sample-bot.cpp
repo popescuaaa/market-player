@@ -6,6 +6,7 @@
 
 /* C includes for networking things */
 #include <arpa/inet.h>
+#include <cstddef>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -23,9 +24,19 @@
 #include <string>
 #include <vector>
 
+/* Helper structures for making the trading more stuctured.
+ */
 struct MarketEvent {
-  std::vector<std::pair<std::string, std::string>> buyOrders;
-  std::vector<std::pair<std::string, std::string>> sellOrders;
+  std::vector<std::pair<double, double>> buyOrders;
+  std::vector<std::pair<double, double>> sellOrders;
+};
+
+struct Portofolio {
+  std::vector<std::pair<double, double>> currentBonds;
+  double intraEventRiskMargin;
+  double spendableAmount;
+  double emaBuyOrders;
+  double emaSellOrders;
 };
 
 /* The Configuration class is used to tell the bot how to connect
@@ -160,7 +171,8 @@ std::vector<std::string> split_string(std::string line, char delim) {
   return tokens;
 }
 
-MarketEvent displayAndProcessMarketActivity(std::string marketEvent) {
+MarketEvent displayAndProcessMarketActivity(std::string marketEvent,
+                                            bool verbose) {
 
   std::cout << "\n------------ Market Event ------------\n";
 
@@ -178,66 +190,151 @@ MarketEvent displayAndProcessMarketActivity(std::string marketEvent) {
   iss >> token; // Should be "BUY"
   std::cout << "Side: " << token << "\n";
 
-  std::vector<std::pair<std::string, std::string>> buyOrders;
+  std::vector<std::pair<double, double>> buyOrders;
   while (iss >> token && token != "SELL") {
     auto pos = token.find(':');
     if (pos != std::string::npos) {
-      std::string price = token.substr(0, pos);
-      std::string quantity = token.substr(pos + 1);
+      double price = std::stod(token.substr(0, pos));
+      double quantity = std::stod(token.substr(pos + 1));
       buyOrders.emplace_back(price, quantity);
     }
   }
-  for (const auto &order : buyOrders) {
-    std::cout << "Price: " << order.first << "   Quantity: " << order.second
-              << "\n";
+
+  if (verbose) {
+    for (const auto &order : buyOrders) {
+      std::cout << "Price: " << order.first << "   Quantity: " << order.second
+                << "\n";
+    }
   }
 
   // 'token' == "SELL", now process sell orders
   std::cout << "\n--- SELL Orders ---\n";
-  std::vector<std::pair<std::string, std::string>> sellOrders;
+  std::vector<std::pair<double, double>> sellOrders;
   // The "SELL" token is already read
   std::cout << "Side: SELL\n";
   while (iss >> token) {
     auto pos = token.find(':');
     if (pos != std::string::npos) {
-      std::string price = token.substr(0, pos);
-      std::string quantity = token.substr(pos + 1);
+      double price = std::stod(token.substr(0, pos));
+      double quantity = std::stod(token.substr(pos + 1));
       sellOrders.emplace_back(price, quantity);
     }
   }
-  for (const auto &order : sellOrders) {
-    std::cout << "Price: " << order.first << "   Quantity: " << order.second
-              << "\n";
+  if (verbose) {
+    for (const auto &order : sellOrders) {
+      std::cout << "Price: " << order.first << "   Quantity: " << order.second
+                << "\n";
+    }
   }
+
+  MarketEvent processedEvent;
+  processedEvent.buyOrders = buyOrders;
+  processedEvent.sellOrders = sellOrders;
+
+  return processedEvent;
+}
+
+double volumeWeightedEMA(const std::vector<std::pair<double, double>> &orders,
+                         int period) {
+  if (orders.empty())
+    return 0.0;
+  double alpha = 2.0 / (period + 1);
+
+  // Initialize EMA values with the first order.
+  double emaPriceQuantity = orders[0].first * orders[0].second;
+  double emaQuantity = orders[0].second;
+
+  // Process orders for EMAs.
+  for (size_t i = 1; i < orders.size(); ++i) {
+    double weightedPrice = orders[i].first * orders[i].second;
+    emaPriceQuantity = alpha * weightedPrice + (1 - alpha) * emaPriceQuantity;
+    emaQuantity = alpha * orders[i].second + (1 - alpha) * emaQuantity;
+  }
+
+  return (emaQuantity != 0) ? (emaPriceQuantity / emaQuantity) : 0.0;
 }
 
 int main(int argc, char *argv[]) {
   // Setup
-  float spendableAmount = 600; // 600 EUR
-  float intraEventRiskMargin = 0.01; // 1%
+  Portofolio portofolio;
+  portofolio.intraEventRiskMargin = 0.01;
+  portofolio.spendableAmount = 600;
+  portofolio.emaBuyOrders = 0;
+  portofolio.emaSellOrders = 0;
 
+  bool portofolioCreated = false;
+  double spendingThrashOld = 50;
+
+  int waitingTime = 10;
   bool test_mode = true;
   Configuration config(test_mode);
   Connection conn(config);
 
   // Initial data for testing the connection
   std::vector<std::string> data;
-  data.push_back(std::string("C++ Trading simulator"));
+  data.push_back(std::string("Bond playground trading"));
   data.push_back(config.team_name);
   conn.send_to_exchange(join(" ", data));
 
   while (1) {
+    waitingTime = waitingTime - 1;
+
     std::string marketEvent = conn.read_from_exchange();
     MarketEvent marketEventProcessed =
-        displayAndProcessMarketActivity(marketEvent);
+        displayAndProcessMarketActivity(marketEvent, true);
 
-    // Build the portofolio first by buying some bonds
+    if (waitingTime <= 0) {
+      portofolio.emaBuyOrders =
+          volumeWeightedEMA(marketEventProcessed.buyOrders,
+                            marketEventProcessed.buyOrders.size());
 
+      portofolio.emaSellOrders =
+          volumeWeightedEMA(marketEventProcessed.sellOrders,
+                            marketEventProcessed.sellOrders.size());
 
-    // Start the selling part
+      std::cout << "[INFO] Ema for buy orders: " << portofolio.emaBuyOrders
+                << "\n";
+      std::cout << "[INFO] Ema for sell orders: " << portofolio.emaSellOrders
+                << "\n";
 
+      if (!portofolioCreated) {
+        // Build the portofolio first by buying some bonds
+        for (const auto &order : marketEventProcessed.sellOrders) {
+          if (order.first < portofolio.emaSellOrders) {
+            if (order.first * order.second <= portofolio.spendableAmount) {
+              // send a buy order specific for hat q and p
+              std::vector<std::string> buyEventElements;
+              buyEventElements.push_back("BUY");
+              buyEventElements.push_back(std::to_string(int(order.first)));
+              buyEventElements.push_back(std::to_string(int(order.second)));
 
-    // Reconstruct the portofolio
+              std::string buyEvent = join(" ", buyEventElements);
+              std::cout << "[INFO] Buy order sent: " << buyEvent << "\n";
+              conn.send_to_exchange(buyEvent);
+
+              // update the spendable amount
+              portofolio.spendableAmount -= order.first * order.second;
+              std::cout << "[INFO] Trader's capital: "
+                        << portofolio.spendableAmount << "\n";
+
+              // update the current bonds
+              portofolio.currentBonds.push_back(order);
+              std::cout << "[INFO] Trader's portofolio" << "\n";
+              for (const auto &order : portofolio.currentBonds) {
+                std::cout << "Price: " << order.first << "   Quantity: " << order.second
+                          << "\n";
+              }
+            }
+          }
+        }
+      }
+
+      if (portofolio.spendableAmount <= spendingThrashOld)
+        portofolioCreated = true;
+      // Start the selling part
+
+      // Reconstruct the portofolio
+    }
   }
 
   return 0;
