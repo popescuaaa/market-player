@@ -187,9 +187,7 @@ MarketEvent displayAndProcessMarketActivity(std::string marketEvent,
   std::cout << "Instrument: " << token << "\n";
 
   // Read buy side tokens until SELL token appears
-  std::cout << "\n--- BUY Orders ---\n";
   iss >> token; // Should be "BUY"
-  std::cout << "Side: " << token << "\n";
 
   std::vector<std::pair<double, double>> buyOrders;
   while (iss >> token && token != "SELL") {
@@ -203,16 +201,14 @@ MarketEvent displayAndProcessMarketActivity(std::string marketEvent,
 
   if (verbose) {
     for (const auto &order : buyOrders) {
-      std::cout << "Price: " << order.first << "   Quantity: " << order.second
+      std::cout << "[BUY ORDER] Price: " << order.first << "   Quantity: " << order.second
                 << "\n";
     }
   }
 
   // 'token' == "SELL", now process sell orders
-  std::cout << "\n--- SELL Orders ---\n";
   std::vector<std::pair<double, double>> sellOrders;
   // The "SELL" token is already read
-  std::cout << "Side: SELL\n";
   while (iss >> token) {
     auto pos = token.find(':');
     if (pos != std::string::npos) {
@@ -223,7 +219,7 @@ MarketEvent displayAndProcessMarketActivity(std::string marketEvent,
   }
   if (verbose) {
     for (const auto &order : sellOrders) {
-      std::cout << "Price: " << order.first << "   Quantity: " << order.second
+      std::cout << "[SELL ORDER] Price: " << order.first << "   Quantity: " << order.second
                 << "\n";
     }
   }
@@ -273,7 +269,7 @@ int main(int argc, char *argv[]) {
 
   // Initial data for testing the connection
   std::vector<std::string> data;
-  data.push_back(std::string("Bond playground trading"));
+  data.push_back(std::string("HELLO test"));
   data.push_back(config.team_name);
   conn.send_to_exchange(join(" ", data));
 

@@ -48,7 +48,7 @@ def run_server():
 
                     # Send updated order book to client
                     book_msg = market.get_book_message()
-                    print(f"Sending: {book_msg.strip()}")
+                    # print(f"Sending: {book_msg.strip()}")
                     conn.sendall(book_msg.encode('utf-8'))
                     time.sleep(1)  # Adjust frequency as needed
             except BrokenPipeError:
