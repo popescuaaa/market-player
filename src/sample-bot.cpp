@@ -22,6 +22,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 /* Helper structures for making the trading more stuctured.
@@ -281,7 +282,7 @@ int main(int argc, char *argv[]) {
 
     std::string marketEvent = conn.read_from_exchange();
     MarketEvent marketEventProcessed =
-        displayAndProcessMarketActivity(marketEvent, true);
+        displayAndProcessMarketActivity(marketEvent, false);
 
     if (waitingTime <= 0) {
       portofolio.emaBuyOrders =
@@ -321,17 +322,73 @@ int main(int argc, char *argv[]) {
               portofolio.currentBonds.push_back(order);
               std::cout << "[INFO] Trader's portofolio" << "\n";
               for (const auto &order : portofolio.currentBonds) {
-                std::cout << "Price: " << order.first << "   Quantity: " << order.second
-                          << "\n";
+                std::cout << "Price: " << order.first
+                          << "   Quantity: " << order.second << "\n";
               }
             }
           }
         }
       }
 
-      if (portofolio.spendableAmount <= spendingThrashOld)
+      if (portofolio.spendableAmount <= spendingThrashOld) {
         portofolioCreated = true;
+        std::cout << "[INFO] Trader's portofolio created sucessfully" << "\n";
+        for (const auto &order : portofolio.currentBonds) {
+          std::cout << "Price: " << order.first
+                    << "   Quantity: " << order.second << "\n";
+        }
+      }
+
       // Start the selling part
+      if (portofolioCreated) {
+        for (const auto &order : marketEventProcessed.buyOrders) {
+          if (order.first > portofolio.emaBuyOrders) {
+            std::pair<double, double> disposableBond{0.0, 0.0};
+
+            for (const auto &currentBond : portofolio.currentBonds) {
+              if (currentBond.second == order.second) {
+                std::cout << "[INFO] Perfect match for amount" << "\n";
+                if (order.first <= currentBond.first) {
+                  std::cout
+                      << "[INFO] Price matching for at least the buy amount."
+                      << "\n";
+
+                  // Place the sell order
+                  std::vector<std::string> sellEventElements;
+                  sellEventElements.push_back("SELL");
+                  sellEventElements.push_back(std::to_string(int(order.first)));
+                  sellEventElements.push_back(
+                      std::to_string(int(order.second)));
+
+                  std::string sellEvent = join(" ", sellEventElements);
+                  std::cout << "[INFO] Buy order sent: " << sellEvent << "\n";
+                  conn.send_to_exchange(sellEvent);
+
+                  // Here we need a mechanism to be sure that the trade is
+                  // executed on the market side
+                  portofolio.spendableAmount += order.first * order.second;
+                  disposableBond = currentBond;
+                }
+              }
+            }
+
+            if (disposableBond.first != 0.0 && disposableBond.second != 0.0) {
+              // remove the disposable bond
+              portofolio.currentBonds.erase(
+                  std::remove_if(
+                      portofolio.currentBonds.begin(),
+                      portofolio.currentBonds.end(),
+                      [disposableBond](const auto &order) {
+                        return (order.first == disposableBond.first) &&
+                               (order.second == disposableBond.second);
+                      }),
+                  portofolio.currentBonds.end());
+
+              std::cout << "[INFO] Disposable bond erased" << "\n";
+            }
+          }
+        }
+      }
 
       // Reconstruct the portofolio
     }
