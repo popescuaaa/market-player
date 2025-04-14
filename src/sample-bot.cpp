@@ -251,144 +251,144 @@ double volumeWeightedEMA(const std::vector<std::pair<double, double>> &orders,
   return (emaQuantity != 0) ? (emaPriceQuantity / emaQuantity) : 0.0;
 }
 
-int main(int argc, char *argv[]) {
-  // Setup
-  Portofolio portofolio;
-  portofolio.intraEventRiskMargin = 0.01;
-  portofolio.spendableAmount = 600;
-  portofolio.emaBuyOrders = 0;
-  portofolio.emaSellOrders = 0;
+// int main(int argc, char *argv[]) {
+//   // Setup
+//   Portofolio portofolio;
+//   portofolio.intraEventRiskMargin = 0.01;
+//   portofolio.spendableAmount = 600;
+//   portofolio.emaBuyOrders = 0;
+//   portofolio.emaSellOrders = 0;
 
-  bool portofolioCreated = false;
-  double spendingThrashOld = 50;
+//   bool portofolioCreated = false;
+//   double spendingThrashOld = 50;
 
-  int waitingTime = 10;
-  bool test_mode = true;
-  Configuration config(test_mode);
-  Connection conn(config);
+//   int waitingTime = 10;
+//   bool test_mode = true;
+//   Configuration config(test_mode);
+//   Connection conn(config);
 
-  // Initial data for testing the connection
-  std::vector<std::string> data;
-  data.push_back(std::string("HELLO test"));
-  data.push_back(config.team_name);
-  conn.send_to_exchange(join(" ", data));
+//   // Initial data for testing the connection
+//   std::vector<std::string> data;
+//   data.push_back(std::string("HELLO test"));
+//   data.push_back(config.team_name);
+//   conn.send_to_exchange(join(" ", data));
 
-  while (1) {
-    waitingTime = waitingTime - 1;
+//   while (1) {
+//     waitingTime = waitingTime - 1;
 
-    std::string marketEvent = conn.read_from_exchange();
-    MarketEvent marketEventProcessed =
-        displayAndProcessMarketActivity(marketEvent, false);
+//     std::string marketEvent = conn.read_from_exchange();
+//     MarketEvent marketEventProcessed =
+//         displayAndProcessMarketActivity(marketEvent, false);
 
-    if (waitingTime <= 0) {
-      portofolio.emaBuyOrders =
-          volumeWeightedEMA(marketEventProcessed.buyOrders,
-                            marketEventProcessed.buyOrders.size());
+//     if (waitingTime <= 0) {
+//       portofolio.emaBuyOrders =
+//           volumeWeightedEMA(marketEventProcessed.buyOrders,
+//                             marketEventProcessed.buyOrders.size());
 
-      portofolio.emaSellOrders =
-          volumeWeightedEMA(marketEventProcessed.sellOrders,
-                            marketEventProcessed.sellOrders.size());
+//       portofolio.emaSellOrders =
+//           volumeWeightedEMA(marketEventProcessed.sellOrders,
+//                             marketEventProcessed.sellOrders.size());
 
-      std::cout << "[INFO] Ema for buy orders: " << portofolio.emaBuyOrders
-                << "\n";
-      std::cout << "[INFO] Ema for sell orders: " << portofolio.emaSellOrders
-                << "\n";
+//       std::cout << "[INFO] Ema for buy orders: " << portofolio.emaBuyOrders
+//                 << "\n";
+//       std::cout << "[INFO] Ema for sell orders: " << portofolio.emaSellOrders
+//                 << "\n";
 
-      if (!portofolioCreated) {
-        // Build the portofolio first by buying some bonds
-        for (const auto &order : marketEventProcessed.sellOrders) {
-          if (order.first < portofolio.emaSellOrders) {
-            if (order.first * order.second <= portofolio.spendableAmount) {
-              // send a buy order specific for hat q and p
-              std::vector<std::string> buyEventElements;
-              buyEventElements.push_back("BUY");
-              buyEventElements.push_back(std::to_string(int(order.first)));
-              buyEventElements.push_back(std::to_string(int(order.second)));
+//       if (!portofolioCreated) {
+//         // Build the portofolio first by buying some bonds
+//         for (const auto &order : marketEventProcessed.sellOrders) {
+//           if (order.first < portofolio.emaSellOrders) {
+//             if (order.first * order.second <= portofolio.spendableAmount) {
+//               // send a buy order specific for hat q and p
+//               std::vector<std::string> buyEventElements;
+//               buyEventElements.push_back("BUY");
+//               buyEventElements.push_back(std::to_string(int(order.first)));
+//               buyEventElements.push_back(std::to_string(int(order.second)));
 
-              std::string buyEvent = join(" ", buyEventElements);
-              std::cout << "[INFO] Buy order sent: " << buyEvent << "\n";
-              conn.send_to_exchange(buyEvent);
+//               std::string buyEvent = join(" ", buyEventElements);
+//               std::cout << "[INFO] Buy order sent: " << buyEvent << "\n";
+//               conn.send_to_exchange(buyEvent);
 
-              // update the spendable amount
-              portofolio.spendableAmount -= order.first * order.second;
-              std::cout << "[INFO] Trader's capital: "
-                        << portofolio.spendableAmount << "\n";
+//               // update the spendable amount
+//               portofolio.spendableAmount -= order.first * order.second;
+//               std::cout << "[INFO] Trader's capital: "
+//                         << portofolio.spendableAmount << "\n";
 
-              // update the current bonds
-              portofolio.currentBonds.push_back(order);
-              std::cout << "[INFO] Trader's portofolio" << "\n";
-              for (const auto &order : portofolio.currentBonds) {
-                std::cout << "Price: " << order.first
-                          << "   Quantity: " << order.second << "\n";
-              }
-            }
-          }
-        }
-      }
+//               // update the current bonds
+//               portofolio.currentBonds.push_back(order);
+//               std::cout << "[INFO] Trader's portofolio" << "\n";
+//               for (const auto &order : portofolio.currentBonds) {
+//                 std::cout << "Price: " << order.first
+//                           << "   Quantity: " << order.second << "\n";
+//               }
+//             }
+//           }
+//         }
+//       }
 
-      if (portofolio.spendableAmount <= spendingThrashOld) {
-        portofolioCreated = true;
-        std::cout << "[INFO] Trader's portofolio created sucessfully" << "\n";
-        for (const auto &order : portofolio.currentBonds) {
-          std::cout << "Price: " << order.first
-                    << "   Quantity: " << order.second << "\n";
-        }
-      }
+//       if (portofolio.spendableAmount <= spendingThrashOld) {
+//         portofolioCreated = true;
+//         std::cout << "[INFO] Trader's portofolio created sucessfully" << "\n";
+//         for (const auto &order : portofolio.currentBonds) {
+//           std::cout << "Price: " << order.first
+//                     << "   Quantity: " << order.second << "\n";
+//         }
+//       }
 
-      // Start the selling part
-      if (portofolioCreated) {
-        for (const auto &order : marketEventProcessed.buyOrders) {
-          if (order.first > portofolio.emaBuyOrders) {
-            std::pair<double, double> disposableBond{0.0, 0.0};
+//       // Start the selling part
+//       if (portofolioCreated) {
+//         for (const auto &order : marketEventProcessed.buyOrders) {
+//           if (order.first > portofolio.emaBuyOrders) {
+//             std::pair<double, double> disposableBond{0.0, 0.0};
 
-            for (const auto &currentBond : portofolio.currentBonds) {
-              if (currentBond.second == order.second) {
-                std::cout << "[INFO] Perfect match for amount" << "\n";
-                if (order.first <= currentBond.first) {
-                  std::cout
-                      << "[INFO] Price matching for at least the buy amount."
-                      << "\n";
+//             for (const auto &currentBond : portofolio.currentBonds) {
+//               if (currentBond.second == order.second) {
+//                 std::cout << "[INFO] Perfect match for amount" << "\n";
+//                 if (order.first <= currentBond.first) {
+//                   std::cout
+//                       << "[INFO] Price matching for at least the buy amount."
+//                       << "\n";
 
-                  // Place the sell order
-                  std::vector<std::string> sellEventElements;
-                  sellEventElements.push_back("SELL");
-                  sellEventElements.push_back(std::to_string(int(order.first)));
-                  sellEventElements.push_back(
-                      std::to_string(int(order.second)));
+//                   // Place the sell order
+//                   std::vector<std::string> sellEventElements;
+//                   sellEventElements.push_back("SELL");
+//                   sellEventElements.push_back(std::to_string(int(order.first)));
+//                   sellEventElements.push_back(
+//                       std::to_string(int(order.second)));
 
-                  std::string sellEvent = join(" ", sellEventElements);
-                  std::cout << "[INFO] Buy order sent: " << sellEvent << "\n";
-                  conn.send_to_exchange(sellEvent);
+//                   std::string sellEvent = join(" ", sellEventElements);
+//                   std::cout << "[INFO] Buy order sent: " << sellEvent << "\n";
+//                   conn.send_to_exchange(sellEvent);
 
-                  // Here we need a mechanism to be sure that the trade is
-                  // executed on the market side
-                  portofolio.spendableAmount += order.first * order.second;
-                  disposableBond = currentBond;
-                }
-              }
-            }
+//                   // Here we need a mechanism to be sure that the trade is
+//                   // executed on the market side
+//                   portofolio.spendableAmount += order.first * order.second;
+//                   disposableBond = currentBond;
+//                 }
+//               }
+//             }
 
-            if (disposableBond.first != 0.0 && disposableBond.second != 0.0) {
-              // remove the disposable bond
-              portofolio.currentBonds.erase(
-                  std::remove_if(
-                      portofolio.currentBonds.begin(),
-                      portofolio.currentBonds.end(),
-                      [disposableBond](const auto &order) {
-                        return (order.first == disposableBond.first) &&
-                               (order.second == disposableBond.second);
-                      }),
-                  portofolio.currentBonds.end());
+//             if (disposableBond.first != 0.0 && disposableBond.second != 0.0) {
+//               // remove the disposable bond
+//               portofolio.currentBonds.erase(
+//                   std::remove_if(
+//                       portofolio.currentBonds.begin(),
+//                       portofolio.currentBonds.end(),
+//                       [disposableBond](const auto &order) {
+//                         return (order.first == disposableBond.first) &&
+//                                (order.second == disposableBond.second);
+//                       }),
+//                   portofolio.currentBonds.end());
 
-              std::cout << "[INFO] Disposable bond erased" << "\n";
-            }
-          }
-        }
-      }
+//               std::cout << "[INFO] Disposable bond erased" << "\n";
+//             }
+//           }
+//         }
+//       }
 
-      // Reconstruct the portofolio
-    }
-  }
+//       // Reconstruct the portofolio
+//     }
+//   }
 
-  return 0;
-}
+//   return 0;
+// }
